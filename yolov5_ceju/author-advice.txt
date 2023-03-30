@@ -1,0 +1,8 @@
+Binocular ranging based on YOLOv5
+
+1.run  detect-01.py
+
+2.CSDN blog address：https://blog.csdn.net/qq_45077760
+
+If you have any questions, please contact me through my blog
+
