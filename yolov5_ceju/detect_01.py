@@ -135,7 +135,7 @@ def detect(save_img=False):
 
                             height, width = iml.shape[0:2]
                             config = stereoconfig.stereoCamera()
-                            map1x, map1y, map2x, map2y, Q = getRectifyTransform(height, width, config)
+                            map1x, map1y, map2x, map2y, Q = getRectifyTransform(720,1280, config)
                             iml_rectified, imr_rectified = rectifyImage(iml, imr, map1x, map1y, map2x, map2y)
 
                             line = draw_line(iml_rectified, imr_rectified)
