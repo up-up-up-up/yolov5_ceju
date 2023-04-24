@@ -1,10 +1,6 @@
  # -*- coding: utf-8 -*-
 import cv2
 import numpy as np
-import stereo.stereoconfig   #导入相机标定的参数
-#import pcl
-#import pcl.pcl_visualization
-import stereoconfig
 
 # 预处理
 def preprocess(img1, img2):
@@ -140,128 +136,6 @@ def hw3ToN3(points):
     return points_
 
 
-# 深度、颜色转换为点云
-def DepthColor2Cloud(points_3d, colors):
-    rows, cols = points_3d.shape[0:2]
-    size = rows * cols
-
-    points_ = hw3ToN3(points_3d)
-    colors_ = hw3ToN3(colors).astype(np.int64)
-
-    # 颜色信息
-    blue = colors_[:, 0].reshape(size, 1)
-    green = colors_[:, 1].reshape(size, 1)
-    red = colors_[:, 2].reshape(size, 1)
-
-    rgb = np.left_shift(blue, 0) + np.left_shift(green, 8) + np.left_shift(red, 16)
-
-    # 将坐标+颜色叠加为点云数组
-    pointcloud = np.hstack((points_, rgb)).astype(np.float32)
-
-    # 删掉一些不合适的点
-    X = pointcloud[:, 0]
-    Y = pointcloud[:, 1]
-    Z = pointcloud[:, 2]
-
-    remove_idx1 = np.where(Z <= 0)
-    remove_idx2 = np.where(Z > 10000)
-    remove_idx3 = np.where(X > 10000)
-    remove_idx4 = np.where(X < -10000)
-    remove_idx5 = np.where(Y > 10000)
-    remove_idx6 = np.where(Y < -10000)
-    remove_idx = np.hstack((remove_idx1[0], remove_idx2[0], remove_idx3[0], remove_idx4[0], remove_idx5[0], remove_idx6[0]))
-
-    pointcloud_1 = np.delete(pointcloud, remove_idx, 0)
-
-    return pointcloud_1
 
 
-# 点云显示
-def view_cloud(pointcloud):
-    cloud = pcl.PointCloud_PointXYZRGBA()
-    cloud.from_array(pointcloud)
 
-    try:
-        visual = pcl.pcl_visualization.CloudViewing()
-        visual.ShowColorACloud(cloud)
-        v = True
-        while v:
-            v = not (visual.WasStopped())
-    except:
-        pass
-
-
-if __name__ == '__main__':
-
-    i = 209
-    #string = ''
-    # 读取数据集的图片
-    '''iml = cv2.imread('./yolo/zuo/%szuo%d.bmp' %(string,i) )  # 左图
-    imr = cv2.imread('./yolo/you/%syou%d.bmp' %(string,i) ) # 右图'''
-    '''iml = cv2.imread('C:/YOLO5/yolov5_stereo/%right_2%d.bmp' %(string, i))  # 左图
-    imr = cv2.imread('C:/YOLO5/yolov5_stereo/%right_2%d.bmp' %(string, i))  # 右图'''
-    iml = cv2.imread('C:/YOLO5/yolov5_stereo/left_2.jpg')  # 左图
-    imr = cv2.imread('C:/YOLO5/yolov5_stereo/right_2.jpg')
-    height, width = iml.shape[0:2]
-
-    print("width =  %d \n"  % width)
-    print("height = %d \n"  % height)
-    
-
-    # 读取相机内参和外参
-    config = stereoconfig_040_2.stereoCamera()
-
-    # 立体校正
-    map1x, map1y, map2x, map2y, Q = getRectifyTransform(height, width, config)  # 获取用于畸变校正和立体校正的映射矩阵以及用于计算像素空间坐标的重投影矩阵
-    iml_rectified, imr_rectified = rectifyImage(iml, imr, map1x, map1y, map2x, map2y)
-
-    print("Print Q!")
-    print(Q[2,3])
-
-    # 绘制等间距平行线，检查立体校正的效果
-    line = draw_line(iml_rectified, imr_rectified)
-    #cv2.imwrite('./yolo/%s检验%d.png' %(string,i), line)
-    cv2.imwrite('./yolo/%s检验%d.png', line)
-
-    # 消除畸变
-    iml = undistortion(iml, config.cam_matrix_left, config.distortion_l)
-    imr = undistortion(imr, config.cam_matrix_right, config.distortion_r)
-
-    # 立体匹配
-    iml_, imr_ = preprocess(iml, imr)  # 预处理，一般可以削弱光照不均的影响，不做也可以
-
-    iml_rectified_l, imr_rectified_r = rectifyImage(iml_, imr_, map1x, map1y, map2x, map2y)
-
-    disp, _ = stereoMatchSGBM(iml_rectified_l, imr_rectified_r, True) 
-    #cv2.imwrite('./yolo/%s视差%d.png' %(string,i), disp)
-    cv2.imwrite('./yolo/%s视差%d.png' , disp)
-
-    
-
-    # 计算像素点的3D坐标（左相机坐标系下）
-    points_3d = cv2.reprojectImageTo3D(disp, Q)  # 可以使用上文的stereo_config.py给出的参数
-
-    #points_3d = points_3d
-
-        # 鼠标点击事件
-    def onMouse(event, x, y, flags, param):
-        if event == cv2.EVENT_LBUTTONDOWN:
-            print('点 (%d, %d) 的三维坐标 (x:%.3fm, y:%.3fm, z:%.3fm)' % (x, y, points_3d[y, x, 0]/1000, points_3d[y, x, 1]/1000, points_3d[y, x, 2]/1000))
-            dis = ( (points_3d[y, x, 0] ** 2 + points_3d[y, x, 1] ** 2 + points_3d[y, x, 2] **2) ** 0.5) / 1000
-            print('点 (%d, %d) 距离左摄像头的相对距离为 %0.3f m' %(x, y, dis) )
-
-        # 显示图片
-    cv2.namedWindow("disparity",0)
-    cv2.imshow("disparity", disp)
-    cv2.setMouseCallback("disparity", onMouse, 0)
-
-    
-
-    # 构建点云--Point_XYZRGBA格式
-    pointcloud = DepthColor2Cloud(points_3d, iml)
-
-    # 显示点云
-    #view_cloud(pointcloud)
-
-    cv2.waitKey(0)
-    cv2.destroyAllWindows()
